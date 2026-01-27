@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>문의내용 증상 분석 대시보드</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .nav-btn {
+            padding: 12px 24px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .nav-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+        .nav-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .product-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .product-tab {
+            padding: 12px 24px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .product-tab:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        .product-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+        .top-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        .top-btn {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .top-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        .top-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            height: 500px;
+        }
+        .symptom-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .symptom-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            border: 2px solid #e2e8f0;
+        }
+        .symptom-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+            border-color: #667eea;
+        }
+        .symptom-rank {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .symptom-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        .symptom-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .symptom-count {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+        .symptom-percent {
+            font-size: 14px;
+            color: #718096;
+            background: #f7fafc;
+            padding: 4px 12px;
+            border-radius: 12px;
+        }
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #667eea;
+            font-size: 18px;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f4f6;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #e53e3e;
+            background: #fff5f5;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        .error-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .error-message {
+            font-size: 16px;
+            color: #718096;
+        }
+        .hidden {
+            display: none !important;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            .symptom-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-buttons">
+            <a href="index.html" class="nav-btn">📊 서비스 접수 비교 분석</a>
+            <a href="symptom_analysis.html" class="nav-btn active">🔍 문의내용 증상 분석</a>
+        </div>
+
+        <h1>🔍 문의내용 증상 분석</h1>
+        <p class="subtitle">제품별 증상 분석 대시보드</p>
+
+        <div id="loadingSection">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <div>데이터를 불러오는 중...</div>
+            </div>
+        </div>
+
+        <div id="errorSection" class="hidden"></div>
+
+        <div id="dashboardSection" class="hidden">
+            <div class="product-tabs" id="productTabs"></div>
+
+            <div class="top-controls">
+                <button class="top-btn active" data-top="10">TOP 10</button>
+                <button class="top-btn" data-top="20">TOP 20</button>
+                <button class="top-btn" data-top="30">TOP 30</button>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="bubbleChart"></canvas>
+            </div>
+
+            <div class="symptom-grid" id="symptomGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            // 엑셀 파일명 (GitHub에 업로드할 파일명과 동일하게)
+            excelFileName: 'data.xlsx'
+        };
+
+        const app = {
+            data: null,
+            currentProduct: null,
+            currentTop: 10,
+            chart: null,
+
+            async init() {
+                try {
+                    await this.loadExcelFile();
+                } catch (error) {
+                    this.showError(error);
+                }
+            },
+
+            async loadExcelFile() {
+                try {
+                    const response = await fetch(CONFIG.excelFileName);
+                    if (!response.ok) {
+                        throw new Error(`파일을 찾을 수 없습니다: ${CONFIG.excelFileName}`);
+                    }
+                    
+                    const arrayBuffer = await response.arrayBuffer();
+                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawData = XLSX.utils.sheet_to_json(firstSheet);
+                    
+                    this.data = this.processSymptomData(rawData);
+                    this.showDashboard();
+                } catch (error) {
+                    throw new Error('데이터 로드 실패: ' + error.message);
+                }
+            },
+
+            normalizeSymptom(text) {
+                if (!text) return '기타';
+                
+                let normalized = text.toString().trim()
+                    .replace(/\s+/g, '')
+                    .replace(/[()]/g, '')
+                    .toLowerCase();
+
+                const rules = {
+                    '전원': ['전원안', '전원불', '전원무', '전원꺼짐', '전원켜짐'],
+                    '작동불': ['작동안', '작동불량', '동작불', '동작안'],
+                    '소음': ['소리', '이음', '잡음'],
+                    '누수': ['물샘', '물새', '누설'],
+                    '냄새': ['악취', '냄새남']
+                };
+
+                for (const [key, variations] of Object.entries(rules)) {
+                    if (variations.some(v => normalized.includes(v))) {
+                        return key;
+                    }
+                }
+
+                return normalized;
+            },
+
+            processSymptomData(rawData) {
+                const byProduct = {};
+
+                rawData.forEach(row => {
+                    const product = row['제품그룹'] || '기타';
+                    const symptom = this.normalizeSymptom(row['문의내용']);
+
+                    if (!byProduct[product]) {
+                        byProduct[product] = {};
+                    }
+
+                    if (!byProduct[product][symptom]) {
+                        byProduct[product][symptom] = 0;
+                    }
+
+                    byProduct[product][symptom]++;
+                });
+
+                const processed = {};
+                for (const [product, symptoms] of Object.entries(byProduct)) {
+                    const total = Object.values(symptoms).reduce((a, b) => a + b, 0);
+                    const sorted = Object.entries(symptoms)
+                        .map(([name, count]) => ({
+                            name,
+                            count,
+                            percent: ((count / total) * 100).toFixed(1)
+                        }))
+                        .sort((a, b) => b.count - a.count);
+                    
+                    processed[product] = {
+                        total,
+                        symptoms: sorted
+                    };
+                }
+
+                return processed;
+            },
+
+            showDashboard() {
+                document.getElementById('loadingSection').classList.add('hidden');
+                document.getElementById('dashboardSection').classList.remove('hidden');
+                
+                this.setupProductTabs();
+                this.setupTopControls();
+                this.currentProduct = Object.keys(this.data)[0];
+                this.render();
+            },
+
+            showError(error) {
+                document.getElementById('loadingSection').classList.add('hidden');
+                const errorSection = document.getElementById('errorSection');
+                errorSection.innerHTML = `
+                    <div class="error">
+                        <div class="error-title">⚠️ 오류 발생</div>
+                        <div class="error-message">${error.message}</div>
+                        <div class="error-message" style="margin-top: 15px;">
+                            GitHub에 <strong>${CONFIG.excelFileName}</strong> 파일이 업로드되어 있는지 확인해주세요.
+                        </div>
+                    </div>
+                `;
+                errorSection.classList.remove('hidden');
+            },
+
+            setupProductTabs() {
+                const tabsContainer = document.getElementById('productTabs');
+                Object.keys(this.data).forEach((product, index) => {
+                    const tab = document.createElement('button');
+                    tab.className = 'product-tab' + (index === 0 ? ' active' : '');
+                    tab.textContent = product;
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.product-tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        this.currentProduct = product;
+                        this.render();
+                    });
+                    tabsContainer.appendChild(tab);
+                });
+            },
+
+            setupTopControls() {
+                document.querySelectorAll('.top-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.top-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.currentTop = parseInt(btn.dataset.top);
+                        this.render();
+                    });
+                });
+            },
+
+            render() {
+                this.renderBubbleChart();
+                this.renderSymptomCards();
+            },
+
+            renderBubbleChart() {
+                const productData = this.data[this.currentProduct];
+                const topSymptoms = productData.symptoms.slice(0, this.currentTop);
+
+                const bubbleData = topSymptoms.map((symptom, index) => ({
+                    x: index + 1,
+                    y: symptom.count,
+                    r: Math.sqrt(symptom.count) * 2
+                }));
+
+                const ctx = document.getElementById('bubbleChart');
+                if (this.chart) this.chart.destroy();
+
+                this.chart = new Chart(ctx, {
+                    type: 'bubble',
+                    data: {
+                        datasets: [{
+                            label: this.currentProduct,
+                            data: bubbleData,
+                            backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                            borderColor: '#667eea',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => {
+                                        const index = context.dataIndex;
+                                        const symptom = topSymptoms[index];
+                                        return `${symptom.name}: ${symptom.count}건 (${symptom.percent}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '순위'
+                                },
+                                min: 0,
+                                max: this.currentTop + 1
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: '문의 건수'
+                                },
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            },
+
+            renderSymptomCards() {
+                const productData = this.data[this.currentProduct];
+                const topSymptoms = productData.symptoms.slice(0, this.currentTop);
+
+                const html = topSymptoms.map((symptom, index) => `
+                    <div class="symptom-card">
+                        <div class="symptom-rank">${index + 1}</div>
+                        <div class="symptom-name">${symptom.name}</div>
+                        <div class="symptom-stats">
+                            <div class="symptom-count">${symptom.count.toLocaleString()}건</div>
+                            <div class="symptom-percent">${symptom.percent}%</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('symptomGrid').innerHTML = html;
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>

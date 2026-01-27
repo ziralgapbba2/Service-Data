@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서비스 접수 비교 분석 대시보드</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .nav-btn {
+            padding: 12px 24px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .nav-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+        .nav-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .tab:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+        }
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .stat-change {
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .stat-change.positive {
+            color: #68d391;
+        }
+        .stat-change.negative {
+            color: #fc8181;
+        }
+        .filters {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        .filter-row {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+            align-items: start;
+        }
+        .filter-row:last-child {
+            margin-bottom: 0;
+        }
+        .filter-label {
+            font-weight: 600;
+            color: #4a5568;
+            padding-top: 8px;
+        }
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        .filter-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .chart-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2d3748;
+        }
+        .table-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            overflow-x: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background: #f7fafc;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        tr:hover {
+            background: #f7fafc;
+        }
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #667eea;
+            font-size: 18px;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f4f6;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #e53e3e;
+            background: #fff5f5;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        .error-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .error-message {
+            font-size: 16px;
+            color: #718096;
+        }
+        .hidden {
+            display: none !important;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .filter-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-buttons">
+            <a href="index.html" class="nav-btn active">📊 서비스 접수 비교 분석</a>
+            <a href="symptom_analysis.html" class="nav-btn">🔍 문의내용 증상 분석</a>
+        </div>
+
+        <h1>📊 서비스 접수 비교 분석</h1>
+        <p class="subtitle">전월 vs 당월 트렌드 비교 대시보드</p>
+
+        <div id="loadingSection">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <div>데이터를 불러오는 중...</div>
+            </div>
+        </div>
+
+        <div id="errorSection" class="hidden"></div>
+
+        <div id="dashboardSection" class="hidden">
+            <div class="tabs">
+                <button class="tab active" data-tab="전체">📌 전체</button>
+                <button class="tab" data-tab="제품별">📦 제품별</button>
+                <button class="tab" data-tab="서비스별">🔧 서비스별</button>
+                <button class="tab" data-tab="센터별">🏢 센터별</button>
+            </div>
+
+            <div id="statsArea" class="stats-grid"></div>
+
+            <div class="filters">
+                <div class="filter-row">
+                    <div class="filter-label">센터구분</div>
+                    <div class="filter-buttons" id="filter1"></div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-label">유무상구분</div>
+                    <div class="filter-buttons" id="filter2"></div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-label">서비스구분</div>
+                    <div class="filter-buttons" id="filter3"></div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title" id="chartTitle">일자별 접수건 현황</div>
+                <canvas id="myChart"></canvas>
+            </div>
+
+            <div class="table-container">
+                <div class="chart-title">상세 데이터</div>
+                <div id="tableArea"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            // 엑셀 파일명 (GitHub에 업로드할 파일명과 동일하게)
+            excelFileName: 'data.xlsx'
+        };
+
+        const app = {
+            data: null,
+            currentTab: '전체',
+            filters: {
+                센터구분: '전체',
+                유무상구분: '전체',
+                서비스구분: '전체'
+            },
+            chart: null,
+
+            async init() {
+                try {
+                    await this.loadExcelFile();
+                } catch (error) {
+                    this.showError(error);
+                }
+            },
+
+            async loadExcelFile() {
+                try {
+                    const response = await fetch(CONFIG.excelFileName);
+                    if (!response.ok) {
+                        throw new Error(`파일을 찾을 수 없습니다: ${CONFIG.excelFileName}`);
+                    }
+                    
+                    const arrayBuffer = await response.arrayBuffer();
+                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawData = XLSX.utils.sheet_to_json(firstSheet);
+                    
+                    this.data = this.processData(rawData);
+                    this.showDashboard();
+                } catch (error) {
+                    throw new Error('데이터 로드 실패: ' + error.message);
+                }
+            },
+
+            processData(rawData) {
+                const processed = {
+                    raw: rawData,
+                    byDate: {},
+                    byProduct: {},
+                    byService: {},
+                    byCenter: {},
+                    filters: {
+                        센터구분: new Set(['전체']),
+                        유무상구분: new Set(['전체']),
+                        서비스구분: new Set(['전체'])
+                    }
+                };
+
+                rawData.forEach(row => {
+                    if (row['센터구분']) processed.filters.센터구분.add(row['센터구분']);
+                    if (row['유무상처리']) processed.filters.유무상구분.add(row['유무상처리']);
+                    if (row['서비스구분']) processed.filters.서비스구분.add(row['서비스구분']);
+
+                    const date = row['접수일자'];
+                    const month = row['기준월'];
+                    if (!processed.byDate[date]) {
+                        processed.byDate[date] = { date, month, count: 0 };
+                    }
+                    processed.byDate[date].count++;
+
+                    const product = row['제품그룹'] || '기타';
+                    if (!processed.byProduct[product]) {
+                        processed.byProduct[product] = { name: product, count: 0, byMonth: {} };
+                    }
+                    processed.byProduct[product].count++;
+                    if (!processed.byProduct[product].byMonth[month]) {
+                        processed.byProduct[product].byMonth[month] = 0;
+                    }
+                    processed.byProduct[product].byMonth[month]++;
+
+                    const service = row['서비스구분'] || '기타';
+                    if (!processed.byService[service]) {
+                        processed.byService[service] = { name: service, count: 0, byMonth: {} };
+                    }
+                    processed.byService[service].count++;
+                    if (!processed.byService[service].byMonth[month]) {
+                        processed.byService[service].byMonth[month] = 0;
+                    }
+                    processed.byService[service].byMonth[month]++;
+
+                    const center = row['이관처명'] || '미분류';
+                    if (!processed.byCenter[center]) {
+                        processed.byCenter[center] = { name: center, count: 0, byMonth: {} };
+                    }
+                    processed.byCenter[center].count++;
+                    if (!processed.byCenter[center].byMonth[month]) {
+                        processed.byCenter[center].byMonth[month] = 0;
+                    }
+                    processed.byCenter[center].byMonth[month]++;
+                });
+
+                return processed;
+            },
+
+            showDashboard() {
+                document.getElementById('loadingSection').classList.add('hidden');
+                document.getElementById('dashboardSection').classList.remove('hidden');
+                
+                this.setupTabs();
+                this.setupFilters();
+                this.render();
+            },
+
+            showError(error) {
+                document.getElementById('loadingSection').classList.add('hidden');
+                const errorSection = document.getElementById('errorSection');
+                errorSection.innerHTML = `
+                    <div class="error">
+                        <div class="error-title">⚠️ 오류 발생</div>
+                        <div class="error-message">${error.message}</div>
+                        <div class="error-message" style="margin-top: 15px;">
+                            GitHub에 <strong>${CONFIG.excelFileName}</strong> 파일이 업로드되어 있는지 확인해주세요.
+                        </div>
+                    </div>
+                `;
+                errorSection.classList.remove('hidden');
+            },
+
+            setupTabs() {
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        this.currentTab = tab.dataset.tab;
+                        this.render();
+                    });
+                });
+            },
+
+            setupFilters() {
+                const filter1 = document.getElementById('filter1');
+                this.data.filters.센터구분.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.className = 'filter-btn' + (item === '전체' ? ' active' : '');
+                    btn.textContent = item;
+                    btn.addEventListener('click', () => {
+                        filter1.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.filters.센터구분 = item;
+                        this.render();
+                    });
+                    filter1.appendChild(btn);
+                });
+
+                const filter2 = document.getElementById('filter2');
+                this.data.filters.유무상구분.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.className = 'filter-btn' + (item === '전체' ? ' active' : '');
+                    btn.textContent = item;
+                    btn.addEventListener('click', () => {
+                        filter2.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.filters.유무상구분 = item;
+                        this.render();
+                    });
+                    filter2.appendChild(btn);
+                });
+
+                const filter3 = document.getElementById('filter3');
+                this.data.filters.서비스구분.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.className = 'filter-btn' + (item === '전체' ? ' active' : '');
+                    btn.textContent = item;
+                    btn.addEventListener('click', () => {
+                        filter3.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.filters.서비스구분 = item;
+                        this.render();
+                    });
+                    filter3.appendChild(btn);
+                });
+            },
+
+            render() {
+                const filtered = this.getFilteredData();
+                this.renderStats(filtered);
+                this.renderChart(filtered);
+                this.renderTable(filtered);
+            },
+
+            getFilteredData() {
+                return this.data.raw.filter(row => {
+                    if (this.filters.센터구분 !== '전체' && row['센터구분'] !== this.filters.센터구분) return false;
+                    if (this.filters.유무상구분 !== '전체' && row['유무상처리'] !== this.filters.유무상구분) return false;
+                    if (this.filters.서비스구분 !== '전체' && row['서비스구분'] !== this.filters.서비스구분) return false;
+                    return true;
+                });
+            },
+
+            renderStats(filtered) {
+                const stats = {
+                    '2025-12': filtered.filter(r => r['기준월'] === '2025-12').length,
+                    '2026-01': filtered.filter(r => r['기준월'] === '2026-01').length
+                };
+
+                const change = stats['2026-01'] - stats['2025-12'];
+                const changePercent = stats['2025-12'] > 0 ? ((change / stats['2025-12']) * 100).toFixed(1) : 0;
+
+                const html = `
+                    <div class="stat-card">
+                        <div class="stat-label">2025년 12월 접수건</div>
+                        <div class="stat-value">${stats['2025-12'].toLocaleString()}건</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">2026년 1월 접수건</div>
+                        <div class="stat-value">${stats['2026-01'].toLocaleString()}건</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">증감</div>
+                        <div class="stat-value ${change >= 0 ? 'positive' : 'negative'}">${change >= 0 ? '+' : ''}${change.toLocaleString()}건</div>
+                        <div class="stat-change ${change >= 0 ? 'positive' : 'negative'}">
+                            ${change >= 0 ? '↗' : '↘'} ${changePercent}%
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('statsArea').innerHTML = html;
+            },
+
+            renderChart(filtered) {
+                const byDate = {};
+                filtered.forEach(row => {
+                    const date = row['접수일자'];
+                    if (!byDate[date]) byDate[date] = { date, count: 0, month: row['기준월'] };
+                    byDate[date].count++;
+                });
+
+                const dates = Object.values(byDate).sort((a, b) => new Date(a.date) - new Date(b.date));
+                
+                const month12 = dates.filter(d => d.month === '2025-12');
+                const month01 = dates.filter(d => d.month === '2026-01');
+
+                const ctx = document.getElementById('myChart');
+                if (this.chart) this.chart.destroy();
+
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: month12.map(d => d.date.split('-')[2] + '일'),
+                        datasets: [{
+                            label: '2025년 12월',
+                            data: month12.map(d => d.count),
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }, {
+                            label: '2026년 1월',
+                            data: month01.map(d => d.count),
+                            borderColor: '#764ba2',
+                            backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            },
+
+            renderTable(filtered) {
+                let dataToShow = [];
+
+                if (this.currentTab === '전체') {
+                    const byDate = {};
+                    filtered.forEach(row => {
+                        const date = row['접수일자'];
+                        if (!byDate[date]) byDate[date] = { 날짜: date, 접수건수: 0 };
+                        byDate[date].접수건수++;
+                    });
+                    dataToShow = Object.values(byDate).sort((a, b) => new Date(b.날짜) - new Date(a.날짜)).slice(0, 20);
+                } else if (this.currentTab === '제품별') {
+                    const byProduct = {};
+                    filtered.forEach(row => {
+                        const product = row['제품그룹'] || '기타';
+                        if (!byProduct[product]) byProduct[product] = { 제품: product, 접수건수: 0 };
+                        byProduct[product].접수건수++;
+                    });
+                    dataToShow = Object.values(byProduct).sort((a, b) => b.접수건수 - a.접수건수);
+                } else if (this.currentTab === '서비스별') {
+                    const byService = {};
+                    filtered.forEach(row => {
+                        const service = row['서비스구분'] || '기타';
+                        if (!byService[service]) byService[service] = { 서비스: service, 접수건수: 0 };
+                        byService[service].접수건수++;
+                    });
+                    dataToShow = Object.values(byService).sort((a, b) => b.접수건수 - a.접수건수);
+                } else if (this.currentTab === '센터별') {
+                    const byCenter = {};
+                    filtered.forEach(row => {
+                        const center = row['이관처명'] || '미분류';
+                        if (!byCenter[center]) byCenter[center] = { 센터: center, 접수건수: 0 };
+                        byCenter[center].접수건수++;
+                    });
+                    dataToShow = Object.values(byCenter).sort((a, b) => b.접수건수 - a.접수건수).slice(0, 20);
+                }
+
+                if (dataToShow.length === 0) {
+                    document.getElementById('tableArea').innerHTML = '<p style="text-align:center;padding:20px;color:#999;">데이터가 없습니다</p>';
+                    return;
+                }
+
+                const headers = Object.keys(dataToShow[0]);
+                let html = '<table><thead><tr>';
+                headers.forEach(h => html += `<th>${h}</th>`);
+                html += '</tr></thead><tbody>';
+                
+                dataToShow.forEach(row => {
+                    html += '<tr>';
+                    headers.forEach(h => {
+                        const value = row[h];
+                        html += `<td>${typeof value === 'number' ? value.toLocaleString() : value}</td>`;
+                    });
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table>';
+                document.getElementById('tableArea').innerHTML = html;
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
