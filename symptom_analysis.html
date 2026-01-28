@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>제품별 문의내용 증상 분석</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Noto Sans KR", sans-serif;
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        .main-nav {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 2px solid #F1F5F9;
+            flex-wrap: wrap;
+        }
+        .nav-button {
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 2px solid #667EEA;
+            background: white;
+            color: #667EEA;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .nav-button:hover {
+            background: #667EEA;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+        .nav-button.active {
+            background: #667EEA;
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        h1 {
+            font-size: 36px;
+            font-weight: 800;
+            color: #667EEA;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #64748B;
+            font-size: 15px;
+            margin-bottom: 16px;
+        }
+        .data-source {
+            color: #10B981;
+            background: #D1FAE5;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 24px;
+        }
+        .badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 32px;
+        }
+        .badge {
+            font-size: 13px;
+            color: #059669;
+            background: #D1FAE5;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .product-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+        .product-tab {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 2px solid;
+            transition: all 0.3s;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            padding: 20px;
+            border-radius: 12px;
+        }
+        .stat-label {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: 800;
+        }
+        .stat-sub {
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .selected-symptom {
+            padding: 24px;
+            border-radius: 12px;
+            border: 2px solid;
+            margin-bottom: 32px;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.95; }
+        }
+        .chart-section {
+            margin-bottom: 32px;
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .chart-header h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1F2937;
+        }
+        .chart-header p {
+            font-size: 13px;
+            color: #6B7280;
+            margin-top: 4px;
+        }
+        .top-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .top-button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+        }
+        .top-button.active {
+            background: #667EEA;
+            color: white;
+        }
+        .top-button:not(.active) {
+            background: #E5E7EB;
+            color: #374151;
+        }
+        .top-button:hover:not(.active) {
+            background: #D1D5DB;
+        }
+        .chart-container {
+            background: #F9FAFB;
+            border-radius: 12px;
+            padding: 24px;
+            height: 600px;
+        }
+        .symptoms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+        .symptom-card {
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .symptom-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+        .symptom-card.selected {
+            background: #E0E7FF !important;
+        }
+        .symptom-rank {
+            font-size: 24px;
+            font-weight: 800;
+        }
+        .symptom-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1F2937;
+            margin-left: 8px;
+        }
+        .symptom-count {
+            font-size: 24px;
+            font-weight: 800;
+            margin-top: 12px;
+        }
+        .symptom-percent {
+            font-size: 13px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 12px;
+            background: white;
+            display: inline-block;
+            margin-top: 12px;
+        }
+        .close-button {
+            padding: 10px 20px;
+            background: #E5E7EB;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .close-button:hover {
+            background: #D1D5DB;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 28px;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .nav-button {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-nav">
+            <a href="index.html" class="nav-button">📊 서비스 접수 비교 분석</a>
+            <a href="symptom_analysis.html" class="nav-button active">🔍 문의내용 증상 분석</a>
+        </div>
+        
+        <h1>제품별 문의내용 증상 분석</h1>
+        <p class="subtitle">상위 10개 제품의 고객 문의에서 추출한 구체적인 문제 증상입니다</p>
+        <div class="data-source">📅 데이터 기간: 2026년 1월 (78,036건)</div>
+        
+        <div class="badges">
+            <span class="badge">✅ 띄어쓰기 정규화</span>
+            <span class="badge">✅ 대소문자 정규화</span>
+            <span class="badge">✅ O/0 정규화</span>
+            <span class="badge">✅ 쉼표 정규화</span>
+            <span class="badge">✅ 작동불/작동불량 통합</span>
+        </div>
+        
+        <div class="product-tabs" id="productTabs"></div>
+        <div class="stats-grid" id="statsGrid"></div>
+        <div id="selectedSymptomBox"></div>
+        
+        <div class="chart-section">
+            <div class="chart-header">
+                <div>
+                    <h2>증상 빈도 분산 분석</h2>
+                    <p>버블을 클릭하면 상세 정보가 표시됩니다 • 버블 크기는 점유율을 나타냅니다</p>
+                </div>
+                <div class="top-buttons">
+                    <button class="top-button active" data-count="10">Top 10</button>
+                    <button class="top-button" data-count="20">Top 20</button>
+                    <button class="top-button" data-count="30">Top 30</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="symptomChart"></canvas>
+            </div>
+        </div>
+        
+        <div>
+            <h2 style="font-size: 24px; font-weight: 700; color: #1F2937; margin-bottom: 16px;">
+                상위 <span id="showCountLabel">10</span>개 증상 상세
+            </h2>
+            <div class="symptoms-grid" id="symptomsGrid"></div>
+        </div>
+    </div>
+    
+    <script>
+        const data = {"밥솥": {"total_count": 89516, "symptoms": [{"symptom": "증기누설", "count": 12434, "percentage": 13.89}, {"symptom": "증기샘", "count": 3013, "percentage": 3.37}, {"symptom": "E01", "count": 1937, "percentage": 2.16}, {"symptom": "김샘", "count": 1745, "percentage": 1.95}, {"symptom": "e01", "count": 1602, "percentage": 1.79}, {"symptom": "조기배출", "count": 1568, "percentage": 1.75}, {"symptom": "전원무", "count": 1325, "percentage": 1.48}, {"symptom": "설익음", "count": 1317, "percentage": 1.47}, {"symptom": "냄새", "count": 1110, "percentage": 1.24}, {"symptom": "증누", "count": 1058, "percentage": 1.18}, {"symptom": "밥마름", "count": 801, "percentage": 0.89}, {"symptom": "에러", "count": 788, "percentage": 0.88}, {"symptom": "eco", "count": 666, "percentage": 0.74}, {"symptom": "ECO", "count": 645, "percentage": 0.72}, {"symptom": "찰기무", "count": 506, "percentage": 0.57}, {"symptom": "증기누설-내방", "count": 419, "percentage": 0.47}, {"symptom": "놉파손", "count": 389, "percentage": 0.43}, {"symptom": "증기배출무", "count": 388, "percentage": 0.43}, {"symptom": "e01에러", "count": 382, "percentage": 0.43}, {"symptom": "놉 파손", "count": 372, "percentage": 0.42}]}, "정수기": {"total_count": 51156, "symptoms": [{"symptom": "냉수미지근", "count": 209, "percentage": 0.41}, {"symptom": "온수안나옴", "count": 165, "percentage": 0.32}, {"symptom": "온수안됨", "count": 138, "percentage": 0.27}, {"symptom": "온수미지근", "count": 107, "percentage": 0.21}, {"symptom": "물안나옴", "count": 96, "percentage": 0.19}, {"symptom": "얼음안나옴", "count": 93, "percentage": 0.18}, {"symptom": "얼음안나옵니다", "count": 83, "percentage": 0.16}, {"symptom": "냉수 미지근", "count": 82, "percentage": 0.16}, {"symptom": "물맛이상", "count": 80, "percentage": 0.16}, {"symptom": "온수 안나옴", "count": 76, "percentage": 0.15}, {"symptom": "소음심합니다", "count": 76, "percentage": 0.15}, {"symptom": "온수안나옵니다", "count": 67, "percentage": 0.13}, {"symptom": "온수출수안됨", "count": 56, "percentage": 0.11}, {"symptom": "소음", "count": 56, "percentage": 0.11}, {"symptom": "물안나옵니다", "count": 53, "percentage": 0.1}, {"symptom": "얼음 안나옴", "count": 51, "percentage": 0.1}, {"symptom": "소음심함", "count": 50, "percentage": 0.1}, {"symptom": "냉수안됨", "count": 47, "percentage": 0.09}, {"symptom": "온수 미지근", "count": 46, "percentage": 0.09}, {"symptom": "물 안나옴", "count": 38, "percentage": 0.07}]}, "비데": {"total_count": 14920, "symptoms": [{"symptom": "전원무/누수/변좌시트 조절안됨/버튼안눌림 담당자 010-4854-2984", "count": 69, "percentage": 0.46}, {"symptom": "변좌흔들림", "count": 65, "percentage": 0.44}, {"symptom": "연결선 물샘, 전원 안들어옴, 변좌안따뜻함, 노즐 안나옴 필터쪽에서 물떨어짐, 담당자 : 010 6263 5059", "count": 63, "percentage": 0.42}, {"symptom": "노즐안나옴", "count": 57, "percentage": 0.38}, {"symptom": "노즐 안나옴", "count": 33, "percentage": 0.22}, {"symptom": "누수및점검요청", "count": 27, "percentage": 0.18}, {"symptom": "노즐안나옵니다", "count": 24, "percentage": 0.16}, {"symptom": "12월 설치된 CBT-G1031W 총 31기중 담당 메니저 방문 확인시 21기 설치불량으로 문이 닫히지 않습니다 빠른 방문으로 21기 전체 설치사항 확인요청드립니다", "count": 20, "percentage": 0.13}, {"symptom": "작동여부 점검요청", "count": 20, "percentage": 0.13}, {"symptom": "비데필터부분에서 물샘/빠른방문요청 ", "count": 20, "percentage": 0.13}, {"symptom": "비데 오링 불량  ", "count": 20, "percentage": 0.13}, {"symptom": "변좌 흔들림", "count": 19, "percentage": 0.13}, {"symptom": "비데 연결부위에서 물떨어짐", "count": 18, "percentage": 0.12}, {"symptom": "변좌온열안됩니다", "count": 18, "percentage": 0.12}, {"symptom": "리모컨 작동안됨", "count": 18, "percentage": 0.12}, {"symptom": "후레쉬 밸브 누수 점검 건 AS 접수부탁드립니다.", "count": 17, "percentage": 0.11}, {"symptom": "전원무", "count": 16, "percentage": 0.11}, {"symptom": "필터누수", "count": 15, "percentage": 0.1}, {"symptom": "전체 점검 직원:주복녀 동반 ", "count": 15, "percentage": 0.1}, {"symptom": "노즐안됨", "count": 15, "percentage": 0.1}]}, "음식물처리기": {"total_count": 5062, "symptoms": [{"symptom": "전원무", "count": 190, "percentage": 3.75}, {"symptom": "누수", "count": 87, "percentage": 1.72}, {"symptom": "건조통에러", "count": 81, "percentage": 1.6}, {"symptom": "건조통 에러", "count": 78, "percentage": 1.54}, {"symptom": "에러", "count": 48, "percentage": 0.95}, {"symptom": "건조통 누수", "count": 45, "percentage": 0.89}, {"symptom": "건조통이상", "count": 28, "percentage": 0.55}, {"symptom": "전원 무", "count": 28, "percentage": 0.55}, {"symptom": "건조통누수", "count": 26, "percentage": 0.51}, {"symptom": "작동불", "count": 25, "percentage": 0.49}, {"symptom": "소음", "count": 23, "percentage": 0.45}, {"symptom": "동작불", "count": 19, "percentage": 0.38}, {"symptom": "건조통 이상 에러", "count": 18, "percentage": 0.36}, {"symptom": "작동안됨", "count": 15, "percentage": 0.3}, {"symptom": "건조통 이상", "count": 14, "percentage": 0.28}, {"symptom": "버킷누수", "count": 14, "percentage": 0.28}, {"symptom": "건조통 이상에러", "count": 13, "percentage": 0.26}, {"symptom": "내솥 누수", "count": 12, "percentage": 0.24}, {"symptom": "버킷 누수", "count": 10, "percentage": 0.2}, {"symptom": "분쇄안됨", "count": 10, "percentage": 0.2}]}, "인덕션레인지": {"total_count": 3519, "symptoms": [{"symptom": "전원무", "count": 120, "percentage": 3.41}, {"symptom": "용기인식불", "count": 74, "percentage": 2.1}, {"symptom": "용기인식안됨", "count": 37, "percentage": 1.05}, {"symptom": "용기인식 안됨", "count": 35, "percentage": 0.99}, {"symptom": "전원 무", "count": 24, "percentage": 0.68}, {"symptom": "작동불", "count": 23, "percentage": 0.65}, {"symptom": "냄비없음표시", "count": 20, "percentage": 0.57}, {"symptom": "용기인식x", "count": 20, "percentage": 0.57}, {"symptom": "전원불", "count": 20, "percentage": 0.57}, {"symptom": "가열안됨", "count": 18, "percentage": 0.51}, {"symptom": "냄비인식안됨", "count": 18, "percentage": 0.51}, {"symptom": "내솥에러", "count": 16, "percentage": 0.45}, {"symptom": "용기인식무", "count": 15, "percentage": 0.43}, {"symptom": "냄비인식불", "count": 15, "percentage": 0.43}, {"symptom": "용기인식 불", "count": 15, "percentage": 0.43}, {"symptom": "용기인식X", "count": 15, "percentage": 0.43}, {"symptom": "오븐없음표시", "count": 14, "percentage": 0.4}, {"symptom": "소음", "count": 13, "percentage": 0.37}, {"symptom": "상판깨짐", "count": 13, "percentage": 0.37}, {"symptom": "가열불", "count": 10, "percentage": 0.28}]}, "식기세척기": {"total_count": 2673, "symptoms": [{"symptom": "E3에러", "count": 4, "percentage": 0.15}, {"symptom": "1.13화/설치요청/쿠팡로켓배송.일시불", "count": 3, "percentage": 0.11}, {"symptom": "설치/1월6일", "count": 3, "percentage": 0.11}, {"symptom": "(온라인)||주방가전||식기세척기||CDWD0620TWE||직접입력(10자이내)||운영시 누수||1년 미만||Jhpark751@hanmail.net", "count": 3, "percentage": 0.11}, {"symptom": "(온라인)||생활가전||기타||CDWBS0310TWE||직접입력(10자이내)||e14||1년 미만||chounghm@gmail.com", "count": 2, "percentage": 0.07}, {"symptom": "21수.설치요청.유상.", "count": 2, "percentage": 0.07}, {"symptom": "E14DPFJ", "count": 2, "percentage": 0.07}, {"symptom": "(온라인)||주방가전||식기세척기||CDWCS0620TWE||동작 관련||에러코드 E4||1년 미만||bill1548@naver.com", "count": 2, "percentage": 0.07}, {"symptom": "(온라인)||주방가전||식기세척기||CDWBD0620TB||전원부 관련||어느정도 돌다가 누전차단기가 내려가요||1년 미만||kisine@daum.net", "count": 2, "percentage": 0.07}, {"symptom": "다른 닥터 방문요청 바닥으로 또 누수됨 점검 요청 /무상/  3142410250003", "count": 2, "percentage": 0.07}, {"symptom": "(온라인)||주방가전||식기건조기||CDWCS0610TGW||구조/외관||전면부패널양쪽모서리 유리뒤쪽 금가있음||1년 미만||kyees0124@gmail.com", "count": 2, "percentage": 0.07}, {"symptom": "혼자 계속 돌아가고 소음발생 ", "count": 2, "percentage": 0.07}, {"symptom": "사용시종료후바닥으로누수됨/원수밸브잠금완/이전과동일증상/25년1월구입/1년미만", "count": 2, "percentage": 0.07}, {"symptom": "설치/12월10일/제품은 고객댁에 있습니다 설치 부탁드리겠습니다", "count": 2, "percentage": 0.07}, {"symptom": "설치/12월4일", "count": 2, "percentage": 0.07}, {"symptom": "1.8/쿠팡로켓배송무상설치요청/제품1월6일/01042881908", "count": 2, "percentage": 0.07}, {"symptom": "설치/1월28일", "count": 2, "percentage": 0.07}, {"symptom": "제품 누수/유상안내", "count": 2, "percentage": 0.07}, {"symptom": "E1/E4/E10/E14 에러", "count": 2, "percentage": 0.07}, {"symptom": "1.2.금/쿠팡로켓배송무상설치대상/오후1시이후방문희망", "count": 2, "percentage": 0.07}]}, "무선청소기": {"total_count": 2060, "symptoms": [{"symptom": "충전안됨", "count": 115, "percentage": 5.58}, {"symptom": "충전불", "count": 45, "percentage": 2.18}, {"symptom": "흡입안됨", "count": 39, "percentage": 1.89}, {"symptom": "먼지통 파손", "count": 28, "percentage": 1.36}, {"symptom": "흡입불", "count": 21, "percentage": 1.02}, {"symptom": "충전 안됨", "count": 17, "percentage": 0.83}, {"symptom": "충전x", "count": 17, "percentage": 0.83}, {"symptom": "작동중꺼짐", "count": 15, "percentage": 0.73}, {"symptom": "작동불", "count": 13, "percentage": 0.63}, {"symptom": "작동무", "count": 11, "percentage": 0.53}, {"symptom": "충전불량", "count": 11, "percentage": 0.53}, {"symptom": "흡입약함", "count": 10, "percentage": 0.49}, {"symptom": "전원무", "count": 10, "percentage": 0.49}, {"symptom": "소음", "count": 10, "percentage": 0.49}, {"symptom": "작동안됨", "count": 9, "percentage": 0.44}, {"symptom": "먼지통 안닫힘", "count": 8, "percentage": 0.39}, {"symptom": "충전X", "count": 8, "percentage": 0.39}, {"symptom": "사용중 꺼짐", "count": 7, "percentage": 0.34}, {"symptom": "작동중 꺼짐", "count": 7, "percentage": 0.34}, {"symptom": "충전 불", "count": 7, "percentage": 0.34}]}, "가습기": {"total_count": 2166, "symptoms": [{"symptom": "전원무", "count": 117, "percentage": 5.4}, {"symptom": "분무불", "count": 103, "percentage": 4.76}, {"symptom": "분무안됨", "count": 103, "percentage": 4.76}, {"symptom": "가습안됨", "count": 78, "percentage": 3.6}, {"symptom": "가습불", "count": 65, "percentage": 3.0}, {"symptom": "분무x", "count": 42, "percentage": 1.94}, {"symptom": "분무 불", "count": 33, "percentage": 1.52}, {"symptom": "분무 안됨", "count": 30, "percentage": 1.39}, {"symptom": "작동불", "count": 29, "percentage": 1.34}, {"symptom": "에러", "count": 28, "percentage": 1.29}, {"symptom": "에러코드", "count": 19, "percentage": 0.88}, {"symptom": "분무X", "count": 19, "percentage": 0.88}, {"symptom": "가습무", "count": 17, "percentage": 0.78}, {"symptom": "작동무", "count": 17, "percentage": 0.78}, {"symptom": "가습 안됨", "count": 16, "percentage": 0.74}, {"symptom": "가습x", "count": 13, "percentage": 0.6}, {"symptom": "전원 무", "count": 13, "percentage": 0.6}, {"symptom": "전원x", "count": 12, "percentage": 0.55}, {"symptom": "작동안됨", "count": 11, "percentage": 0.51}, {"symptom": "e3에러", "count": 10, "percentage": 0.46}]}, "로봇청소기": {"total_count": 1353, "symptoms": [{"symptom": "작동안됨", "count": 15, "percentage": 1.11}, {"symptom": "충전안됨", "count": 14, "percentage": 1.03}, {"symptom": "흡입안됨", "count": 14, "percentage": 1.03}, {"symptom": "작동불", "count": 11, "percentage": 0.81}, {"symptom": "물넘침", "count": 8, "percentage": 0.59}, {"symptom": "전원무", "count": 7, "percentage": 0.52}, {"symptom": "점검요청", "count": 7, "percentage": 0.52}, {"symptom": "흡입불", "count": 4, "percentage": 0.3}, {"symptom": "소음", "count": 4, "percentage": 0.3}, {"symptom": "동작안됨", "count": 4, "percentage": 0.3}, {"symptom": "누수", "count": 4, "percentage": 0.3}, {"symptom": "물샘", "count": 3, "percentage": 0.22}, {"symptom": "작동이상", "count": 3, "percentage": 0.22}, {"symptom": "흡입약함", "count": 3, "percentage": 0.22}, {"symptom": "물흐름", "count": 3, "percentage": 0.22}, {"symptom": "흡입 안됨", "count": 3, "percentage": 0.22}, {"symptom": "스테이션 전원무", "count": 3, "percentage": 0.22}, {"symptom": "작동무", "count": 3, "percentage": 0.22}, {"symptom": "모터소음", "count": 2, "percentage": 0.15}, {"symptom": "(온라인)||생활가전||기타||CRVCBAC0510NW||직접입력(10자이내)||세척시 물이흘러내리고, 걸레에냄새||1년 미만||kmn3621@naver.com", "count": 2, "percentage": 0.15}]}, "공기청정기": {"total_count": 1478, "symptoms": [{"symptom": "소음", "count": 34, "percentage": 2.3}, {"symptom": "전원무", "count": 27, "percentage": 1.83}, {"symptom": "소음심함", "count": 15, "percentage": 1.01}, {"symptom": "작동안됨", "count": 8, "percentage": 0.54}, {"symptom": "작동무", "count": 8, "percentage": 0.54}, {"symptom": "모터소음", "count": 6, "percentage": 0.41}, {"symptom": "소음발생", "count": 6, "percentage": 0.41}, {"symptom": "필터6개교환", "count": 6, "percentage": 0.41}, {"symptom": "작동불", "count": 5, "percentage": 0.34}, {"symptom": "소음심합니다", "count": 5, "percentage": 0.34}, {"symptom": "작동시 소음", "count": 5, "percentage": 0.34}, {"symptom": "알레르겐 필터 불량으로 A/S 접수 요청입니다  필터가 너덜거린다고합니다", "count": 5, "percentage": 0.34}, {"symptom": "에러", "count": 4, "percentage": 0.27}, {"symptom": "공기청정기에 이물질 들어가서 소리가 남. 고객컨택  010-9005-2842", "count": 4, "percentage": 0.27}, {"symptom": "공기청정기 센서 불량으로 a/s 접수해주세요 ", "count": 4, "percentage": 0.27}, {"symptom": "필터 교체 요청", "count": 4, "percentage": 0.27}, {"symptom": "ㅇ증상:공기청정기 떨리는 소음이 있음 ㅇ전화번호: 010-8746-3410 ㅇ빠른방문요청드립니다.", "count": 3, "percentage": 0.2}, {"symptom": "점검", "count": 3, "percentage": 0.2}, {"symptom": "벽걸이 청정기 냄새난다고합니다 빠른 AS부탁드립니다 AC-09AA10FWH", "count": 3, "percentage": 0.2}, {"symptom": "청정기 냄새로 AS요청합니다 어린이집이라 빠른요청부탁드립니다 AC-09AA10FWH", "count": 3, "percentage": 0.2}]}};
+        const products = ["밥솥", "정수기", "비데", "음식물처리기", "인덕션레인지", "식기세척기", "무선청소기", "가습기", "로봇청소기", "공기청정기"];
+        const productColors = {
+            '밥솥': { bg: '#FEE2E2', border: '#EF4444', text: '#991B1B' },
+            '정수기': { bg: '#DBEAFE', border: '#3B82F6', text: '#1E40AF' },
+            '비데': { bg: '#FCE7F3', border: '#EC4899', text: '#9F1239' },
+            '음식물처리기': { bg: '#D1FAE5', border: '#10B981', text: '#065F46' },
+            '인덕션레인지': { bg: '#FEF3C7', border: '#F59E0B', text: '#78350F' },
+            '식기세척기': { bg: '#E0E7FF', border: '#6366F1', text: '#3730A3' },
+            '무선청소기': { bg: '#F3E8FF', border: '#A855F7', text: '#6B21A8' },
+            '가습기': { bg: '#FED7E2', border: '#F687B3', text: '#97266D' },
+            '로봇청소기': { bg: '#FFF4E6', border: '#FB923C', text: '#9A3412' },
+            '공기청정기': { bg: '#DCFCE7', border: '#22C55E', text: '#166534' }
+        };
+        
+        let currentProduct = '밥솥';
+        let showCount = 10;
+        let selectedSymptom = null;
+        let chart = null;
+        
+        function init() {
+            renderProductTabs();
+            renderStats();
+            renderChart();
+            renderSymptomsGrid();
+            attachEventListeners();
+        }
+        
+        function renderProductTabs() {
+            const container = document.getElementById('productTabs');
+            container.innerHTML = products.map(product => {
+                const color = productColors[product];
+                const isActive = product === currentProduct;
+                return `
+                    <button 
+                        class="product-tab ${isActive ? 'active' : ''}"
+                        data-product="${product}"
+                        style="
+                            background-color: ${isActive ? color.border : color.bg};
+                            color: ${isActive ? 'white' : color.text};
+                            border-color: ${color.border};
+                        "
+                    >
+                        ${product}
+                        <span style="font-size: 13px; opacity: 0.8; margin-left: 4px;">
+                            (${data[product].total_count.toLocaleString()}건)
+                        </span>
+                    </button>
+                `;
+            }).join('');
+        }
+        
+        function renderStats() {
+            const container = document.getElementById('statsGrid');
+            const productData = data[currentProduct];
+            const color = productColors[currentProduct];
+            
+            container.innerHTML = `
+                <div class="stat-card" style="background-color: ${color.bg};">
+                    <div class="stat-label" style="color: ${color.text};">총 문의 건수</div>
+                    <div class="stat-value" style="color: ${color.border};">
+                        ${productData.total_count.toLocaleString()}<span style="font-size: 16px; margin-left: 4px;">건</span>
+                    </div>
+                </div>
+                <div class="stat-card" style="background-color: ${color.bg};">
+                    <div class="stat-label" style="color: ${color.text};">발견된 증상</div>
+                    <div class="stat-value" style="color: ${color.border};">
+                        ${productData.symptoms.length}<span style="font-size: 16px; margin-left: 4px;">개</span>
+                    </div>
+                </div>
+                <div class="stat-card" style="background-color: ${color.bg};">
+                    <div class="stat-label" style="color: ${color.text};">최다 증상</div>
+                    <div class="stat-value" style="color: ${color.border}; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        ${productData.symptoms[0].symptom}
+                    </div>
+                    <div class="stat-sub" style="color: ${color.text};">
+                        ${productData.symptoms[0].percentage}%
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderSelectedSymptom() {
+            const container = document.getElementById('selectedSymptomBox');
+            if (!selectedSymptom) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            const color = productColors[currentProduct];
+            container.innerHTML = `
+                <div class="selected-symptom" style="background-color: ${color.bg}; border-color: ${color.border};">
+                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px; flex-wrap: wrap;">
+                        <div>
+                            <div style="font-size: 13px; font-weight: 600; color: ${color.text}; margin-bottom: 8px;">
+                                선택된 증상
+                            </div>
+                            <div style="font-size: 32px; font-weight: 800; color: ${color.border}; margin-bottom: 12px;">
+                                ${selectedSymptom.symptom}
+                            </div>
+                            <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                                <div>
+                                    <span style="color: #6B7280;">문의 건수: </span>
+                                    <span style="font-size: 20px; font-weight: 800; color: #1F2937;">
+                                        ${selectedSymptom.count.toLocaleString()}건
+                                    </span>
+                                </div>
+                                <div>
+                                    <span style="color: #6B7280;">점유율: </span>
+                                    <span style="font-size: 20px; font-weight: 800; color: #1F2937;">
+                                        ${selectedSymptom.percentage}%
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="close-button" onclick="clearSelection()">닫기</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderChart() {
+            const canvas = document.getElementById('symptomChart');
+            const productData = data[currentProduct];
+            const symptoms = productData.symptoms.slice(0, showCount);
+            const color = productColors[currentProduct];
+            
+            if (chart) chart.destroy();
+            
+            const maxCount = Math.max(...symptoms.map(s => s.count));
+            const suggestedMax = maxCount * 1.2;
+            
+            const ctx = canvas.getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'bubble',
+                data: {
+                    datasets: [{
+                        data: symptoms.map((s, i) => ({
+                            x: i + 1,
+                            y: s.count,
+                            r: Math.max(10, Math.min(45, s.percentage * 5))
+                        })),
+                        backgroundColor: color.bg,
+                        borderColor: color.border,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: { top: 40, right: 20, bottom: 20, left: 20 }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            selectedSymptom = symptoms[elements[0].index];
+                            renderSelectedSymptom();
+                            renderSymptomsGrid();
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: '증상 순위', font: { size: 14, weight: 'bold' } },
+                            ticks: { stepSize: 1, callback: v => Math.floor(v) }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            suggestedMax: suggestedMax,
+                            title: { display: true, text: '문의 건수', font: { size: 14, weight: 'bold' } },
+                            ticks: { callback: v => v.toLocaleString() + '건' }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'customLabels',
+                    afterDatasetsDraw: (chart) => {
+                        const ctx = chart.ctx;
+                        chart.data.datasets.forEach((dataset, i) => {
+                            const meta = chart.getDatasetMeta(i);
+                            meta.data.forEach((element, index) => {
+                                const symptom = symptoms[index].symptom;
+                                const label = symptom.length > 10 ? symptom.substring(0, 10) + '...' : symptom;
+                                
+                                ctx.fillStyle = '#1F2937';
+                                ctx.font = 'bold 12px "Noto Sans KR"';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                
+                                const x = element.x;
+                                const y = element.y - element.options.radius - 8;
+                                
+                                ctx.fillText(label, x, y);
+                            });
+                        });
+                    }
+                }]
+            });
+        }
+        
+        function renderSymptomsGrid() {
+            const container = document.getElementById('symptomsGrid');
+            const productData = data[currentProduct];
+            const symptoms = productData.symptoms.slice(0, showCount);
+            const color = productColors[currentProduct];
+            
+            container.innerHTML = symptoms.map((symptom, idx) => {
+                const isSelected = selectedSymptom && selectedSymptom.symptom === symptom.symptom;
+                return `
+                    <div 
+                        class="symptom-card ${isSelected ? 'selected' : ''}"
+                        data-symptom-idx="${idx}"
+                        style="
+                            background-color: ${isSelected ? '#E0E7FF' : color.bg};
+                            border-color: ${color.border};
+                        "
+                    >
+                        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                            <span class="symptom-rank" style="color: ${color.text};">${idx + 1}</span>
+                            <span class="symptom-name">${symptom.symptom}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="symptom-count" style="color: ${color.border};">${symptom.count.toLocaleString()}건</span>
+                            <span class="symptom-percent" style="color: ${color.text};">${symptom.percentage}%</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function attachEventListeners() {
+            document.getElementById('productTabs').addEventListener('click', (e) => {
+                const btn = e.target.closest('.product-tab');
+                if (btn) {
+                    currentProduct = btn.dataset.product;
+                    selectedSymptom = null;
+                    renderProductTabs();
+                    renderStats();
+                    renderChart();
+                    renderSymptomsGrid();
+                    renderSelectedSymptom();
+                }
+            });
+            
+            document.querySelectorAll('.top-button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    showCount = parseInt(btn.dataset.count);
+                    selectedSymptom = null;
+                    document.querySelectorAll('.top-button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById('showCountLabel').textContent = showCount;
+                    renderChart();
+                    renderSymptomsGrid();
+                    renderSelectedSymptom();
+                });
+            });
+            
+            document.getElementById('symptomsGrid').addEventListener('click', (e) => {
+                const card = e.target.closest('.symptom-card');
+                if (card) {
+                    const idx = parseInt(card.dataset.symptomIdx);
+                    const productData = data[currentProduct];
+                    selectedSymptom = productData.symptoms[idx];
+                    renderSelectedSymptom();
+                    renderSymptomsGrid();
+                }
+            });
+        }
+        
+        function clearSelection() {
+            selectedSymptom = null;
+            renderSelectedSymptom();
+            renderSymptomsGrid();
+        }
+        
+        init();
+    </script>
+</body>
+</html>
